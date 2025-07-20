@@ -1,18 +1,17 @@
 import os
 from typing import BinaryIO
 
+
 def find_chunk_boundaries(
-    file: BinaryIO, 
-    desired_num_chunks: int, 
-    split_special_token: bytes
+    file: BinaryIO, desired_num_chunks: int, split_special_token: bytes
 ) -> list[int]:
     """
     Chunk the file into parts that can be counted independently.
     May return fewer chunks if the boundaries end up overlapping.
     """
-    assert isinstance(split_special_token, bytes), (
-        "Must represent special token as a bytestring"
-    )
+    assert isinstance(
+        split_special_token, bytes
+    ), "Must represent special token as a bytestring"
 
     # Get total file size in bytes
     file.seek(0, os.SEEK_END)
@@ -49,14 +48,21 @@ def find_chunk_boundaries(
     # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
     return sorted(set(chunk_boundaries))
 
+
+num_processes = 4
 ## Usage
-with open(..., "rb") as f:
+with open(
+    r"C:\Users\HP\Desktop\CS336_spring2025\assignment1-basics\data\TinyStoriesV2-GPT4-valid.txt",
+    "rb",
+) as f:
     boundaries = find_chunk_boundaries(
-        f, num_processes, "<|endoftext|>".encode("utf-8"))
-        
-    # The following is a serial implementation, but you can parallelize this 
+        f, num_processes, "<|endoftext|>".encode("utf-8")
+    )
+
+    # The following is a serial implementation, but you can parallelize this
     # by sending each start/end pair to a set of processes.
     for start, end in zip(boundaries[:-1], boundaries[1:]):
         f.seek(start)
         chunk = f.read(end - start).decode("utf-8", errors="ignore")
+        # print(chunk)
         # Run pre-tokenization on your chunk and store the counts for each pre-token
