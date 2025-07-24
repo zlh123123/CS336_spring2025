@@ -9,6 +9,7 @@ import numpy.typing as npt
 import torch
 from torch import Tensor
 
+from ..cs336_basics.Part2.BPETokenizerTraining import BPETokenizerTraining
 
 
 def run_linear(
@@ -588,4 +589,5 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
+    return BPETokenizerTraining(input_path,vocab_size,special_tokens,1)
     raise NotImplementedError
