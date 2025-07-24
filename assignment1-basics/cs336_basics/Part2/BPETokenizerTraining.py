@@ -240,7 +240,7 @@ def BPETokenizerTraining(
     return vocab, merge
 
 
-if __name__ == "__main__":
-    filename = r"C:\Users\HP\Desktop\CS336_spring2025\assignment1-basics\data\TinyStoriesV2-GPT4-valid.txt"
+# if __name__ == "__main__":
+#     filename = r"C:\Users\HP\Desktop\CS336_spring2025\assignment1-basics\data\TinyStoriesV2-GPT4-valid.txt"
 
-    BPETokenizerTraining(filename, 100, ["<|endoftext|>"], 10)
+#     BPETokenizerTraining(filename, 100, ["<|endoftext|>"], 10)

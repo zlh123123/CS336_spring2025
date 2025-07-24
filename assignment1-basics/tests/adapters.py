@@ -9,7 +9,7 @@ import numpy.typing as npt
 import torch
 from torch import Tensor
 
-from ..cs336_basics.Part2.BPETokenizerTraining import BPETokenizerTraining
+from cs336_basics.Part2.BPETokenizerTraining import BPETokenizerTraining
 
 
 def run_linear(
