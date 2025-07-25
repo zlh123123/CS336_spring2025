@@ -2,6 +2,7 @@ import os
 from typing import BinaryIO
 import multiprocessing as mp
 from functools import partial
+import regex as re
 
 
 def find_chunk_boundaries(
@@ -50,48 +51,101 @@ def find_chunk_boundaries(
     # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
     return sorted(set(chunk_boundaries))
 
+def pretokenize_chunk(chunk: bytes, special_tokens: list[str]) -> list[bytes]:
+    """
+    对chunk进行预分词处理
+    """
+    try:
+        text = chunk.decode('utf-8', errors='ignore')
+    except:
+        text = chunk.decode('utf-8', errors='replace')
+    
+    # 按特殊token分割
+    special_tokens_sorted = sorted(special_tokens, key=lambda x: -len(x))
+    if special_tokens_sorted:
+        pattern = "|".join(re.escape(tok) for tok in special_tokens_sorted)
+        parts = re.split('(' + pattern + ')', text)
+    else:
+        parts = [text]
+    
+    # GPT-2预分词模式
+    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+    
+    tokens_list = []
+    for part in parts:
+        if part in special_tokens:
+            tokens_list.append([part.encode('utf-8')])
+        elif part:  # 避免空字符串
+            str_tokens = re.findall(PAT, part)
+            part_tokens = [s.encode('utf-8') for s in str_tokens if s]
+            if part_tokens:
+                tokens_list.append(part_tokens)
+    
+    return [token for part_tokens in tokens_list for token in part_tokens]
 
+# def chunk2token(
+#     chunk: bytes, special_tokens: list[str], vocab: dict[int, bytes]
+# ) -> list[int]:
+#     """
+#     将chunk转换为token ID序列
+
+#     Args:
+#         chunk: 原始字节数据
+#         special_tokens: 特殊token列表
+#         vocab: 当前词汇表
+
+#     Returns:
+#         list[int]: token ID序列
+#     """
+#     # 预分词
+    
+#     # 字节找token ID
+#     bytes_to_id = {v: k for k, v in vocab.items()}
+#     # 先处理特殊token
+#     i = 0
+#     result = []
+
+#     while i < len(chunk):
+#         is_special = False
+#         for special_token in special_tokens:
+#             special_byte = special_token.encode("utf-8")
+#             # chunk中第i项往后的，如果开头是special_byte
+#             if chunk[i:].startswith(special_byte):
+#                 # 在字典中能找到
+#                 if special_byte in bytes_to_id:
+#                     result.append(bytes_to_id[special_byte])
+#                     i += len(special_byte)
+#                     is_special = True
+#                     break
+
+#         if not is_special:
+#             byte = bytes([chunk[i]])
+#             if byte in bytes_to_id:
+#                 result.append(bytes_to_id[byte])
+#             i += 1
+
+#     return result
 def chunk2token(
     chunk: bytes, special_tokens: list[str], vocab: dict[int, bytes]
 ) -> list[int]:
     """
     将chunk转换为token ID序列
-
-    Args:
-        chunk: 原始字节数据
-        special_tokens: 特殊token列表
-        vocab: 当前词汇表
-
-    Returns:
-        list[int]: token ID序列
     """
+    # 添加预分词步骤
+    byte_pretokens = pretokenize_chunk(chunk, special_tokens)
+    
     # 字节找token ID
     bytes_to_id = {v: k for k, v in vocab.items()}
-    # 先处理特殊token
-    i = 0
     result = []
 
-    while i < len(chunk):
-        is_special = False
-        for special_token in special_tokens:
-            special_byte = special_token.encode("utf-8")
-            # chunk中第i项往后的，如果开头是special_byte
-            if chunk[i:].startswith(special_byte):
-                # 在字典中能找到
-                if special_byte in bytes_to_id:
-                    result.append(bytes_to_id[special_byte])
-                    i += len(special_byte)
-                    is_special = True
-                    break
-
-        if not is_special:
-            byte = bytes([chunk[i]])
-            if byte in bytes_to_id:
-                result.append(bytes_to_id[byte])
-            i += 1
+    for byte_pretoken in byte_pretokens:
+        if byte_pretoken in bytes_to_id:  # 特殊token
+            result.append(bytes_to_id[byte_pretoken])
+        else:  # 普通字节序列
+            for byte_val in byte_pretoken:
+                result.append(bytes_to_id[bytes([byte_val])])
 
     return result
-
 
 def count_pairs(tokens: list[int]) -> dict[tuple[int, int], int]:
     """
@@ -213,7 +267,15 @@ def BPETokenizerTraining(
             break
 
         # 选出现次数最大的token对
-        max_count_token_pair = max(pair_counts, key=pair_counts.get)
+        # 选出现次数最大的token对，添加tie-breaking
+        max_count_token_pair = max(
+            pair_counts.items(),
+            key=lambda x: (
+                x[1],  # 频次优先
+                vocab[x[0][0]].decode("utf-8", errors="ignore"),  # 第一个token字典序
+                vocab[x[0][1]].decode("utf-8", errors="ignore")   # 第二个token字典序
+            )
+        )[0]
 
         # 组合上面的token对后生成的新token id即now_vocab_size的值
         new_token_id = now_vocab_size
@@ -244,3 +306,5 @@ def BPETokenizerTraining(
 #     filename = r"C:\Users\HP\Desktop\CS336_spring2025\assignment1-basics\data\TinyStoriesV2-GPT4-valid.txt"
 
 #     BPETokenizerTraining(filename, 100, ["<|endoftext|>"], 10)
+
+
