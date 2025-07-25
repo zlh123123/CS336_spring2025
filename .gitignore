@@ -1,1 +1,6 @@
+<<<<<<< HEAD
 assignment1-basics/data/*
+=======
+assignment1-basics/data/*
+**/__pycache__/*
+>>>>>>> e06f0a069d0f61fa45b28c30615511898a4eb9da
